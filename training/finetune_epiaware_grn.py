@@ -415,6 +415,9 @@ def init_wandb_run(args: argparse.Namespace) -> Optional["wandb.sdk.wandb_run.Ru
 
 
 def set_seed(seed: int) -> None:
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
@@ -441,7 +444,7 @@ def build_backbone(args, dataset, candidate_set, device):
         dropout=args.dropout,
     )
     model = EpiAwarePretrainingModel(backbone, recon_head)
-    state = torch.load(args.backbone_checkpoint, map_location="cpu")
+    state = torch.load(args.backbone_checkpoint, map_location="cpu", weights_only=True)
     missing = model.load_state_dict(state, strict=False)
     if missing.missing_keys:
         print(f"[warn] Missing keys when loading checkpoint: {missing.missing_keys}")
@@ -795,7 +798,7 @@ def export_grn_to_csv(
             cache_path = cache_path.parent / f"{cache_path.stem}_epoch{epoch}{cache_suffix}"
         if cache_path.exists():
             try:
-                payload = torch.load(cache_path, map_location="cpu")
+                payload = torch.load(cache_path, map_location="cpu", weights_only=True)
                 if isinstance(payload, dict) and "avg_logits" in payload:
                     avg_logits = torch.as_tensor(payload["avg_logits"], dtype=torch.float32)
                 else:
@@ -1078,11 +1081,10 @@ def train() -> None:
         else:
             val_positive_links = positive_links
 
-        sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, positive_links)
+        sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, positive_links, seed=args.seed)
         val_sampler = None
         if val_loader is not None:
-            val_sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, val_positive_links)
-            val_sampler.rng = np.random.default_rng(args.seed + 1)
+            val_sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, val_positive_links, seed=args.seed + 1)
         val_pos_batch_size = args.val_pos_batch_size or args.pos_batch_size
         val_unl_batch_size = args.val_unl_batch_size or args.unl_batch_size
         tf_gene_lookup = np.full(dataset.num_genes, -1, dtype=np.int64)
@@ -1100,7 +1102,7 @@ def train() -> None:
             head_ckpt_path = Path(args.head_checkpoint)
             if not head_ckpt_path.exists():
                 raise FileNotFoundError(f"Head checkpoint not found: {head_ckpt_path}")
-            head_state = torch.load(head_ckpt_path, map_location=device)
+            head_state = torch.load(head_ckpt_path, map_location=device, weights_only=True)
             if isinstance(head_state, dict) and "head_state" in head_state:
                 head_state = head_state["head_state"]
             missing_head = head.load_state_dict(head_state, strict=False)

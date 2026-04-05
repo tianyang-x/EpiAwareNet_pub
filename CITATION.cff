@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "EpiAwareNet: Epigenome-aware Transformer for Gene Regulatory Network Inference from Single-Cell Multi-Omics Data"
+type: software
+authors:
+  - family-names: Xu
+    given-names: Tianyang
+repository-code: "https://github.com/tianyang-x/EpiAwareNet_pub"
+license: MIT

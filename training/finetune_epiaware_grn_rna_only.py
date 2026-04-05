@@ -269,6 +269,9 @@ def init_wandb_run(args: argparse.Namespace) -> Optional[object]:
 
 
 def set_seed(seed: int) -> None:
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
@@ -398,7 +401,7 @@ def load_geneonly_backbone(args: argparse.Namespace, dataset: RNADataset, device
         self_chunk_size=args.self_attn_chunk_size,
         reuse_knn_indices=args.reuse_knn_indices,
     )
-    payload = torch.load(args.backbone_checkpoint, map_location="cpu")
+    payload = torch.load(args.backbone_checkpoint, map_location="cpu", weights_only=True)
     # Stage1 RNA-only currently saves either:
     # 1) a raw state_dict / OrderedDict (most common)
     # 2) a wrapped dict with a nested state dict under common keys
@@ -498,7 +501,7 @@ def export_grn_to_csv(
                 cache_path = output_dir / cache_path
         if cache_path.exists():
             try:
-                payload = torch.load(cache_path, map_location="cpu")
+                payload = torch.load(cache_path, map_location="cpu", weights_only=True)
                 if isinstance(payload, dict) and "avg_logits" in payload:
                     avg_logits = torch.as_tensor(payload["avg_logits"], dtype=torch.float32)
                 else:
@@ -709,7 +712,7 @@ def train() -> None:
         ).to(device)
 
         if args.head_checkpoint:
-            payload = torch.load(args.head_checkpoint, map_location="cpu")
+            payload = torch.load(args.head_checkpoint, map_location="cpu", weights_only=True)
             state = payload.get("head_state") if isinstance(payload, dict) else payload
             missing = head.load_state_dict(state, strict=False)
             if missing.missing_keys:
@@ -729,8 +732,8 @@ def train() -> None:
         )
 
         _ = tf_gene_lookup(tf_names, dataset.gene_names)
-        sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, positive_links)
-        val_sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, val_positive_links)
+        sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, positive_links, seed=args.seed)
+        val_sampler = PositiveUnlabeledSampler(tf_names, dataset.gene_names, val_positive_links, seed=args.seed + 1)
         
         def sample_pairs(
             pu_sampler: PositiveUnlabeledSampler,

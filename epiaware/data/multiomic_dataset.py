@@ -21,7 +21,7 @@ def _load_np_matrix(path: Path) -> np.ndarray:
                 return data[key]
         raise ValueError(f"Unable to locate array payload in {path}")
     if path.suffix in {".pt", ".pth"}:
-        tensor = torch.load(path, map_location="cpu")
+        tensor = torch.load(path, map_location="cpu", weights_only=True)
         if isinstance(tensor, torch.Tensor):
             return tensor.numpy()
         raise ValueError(

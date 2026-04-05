@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -7,6 +8,8 @@ from typing import Dict, List, Optional, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 sys.path.append(str(Path(__file__).resolve().parent / "evaluate"))
 import epiaware_metrics  # noqa: E402
@@ -184,7 +187,7 @@ def export_and_evaluate_network(
     except ValueError as exc:
         # For thresholded exports it's valid to have 0 gold overlaps.
         # Still write out metrics for bookkeeping, but skip curves.
-        print(f"[warn] {label}: {exc}")
+        logger.warning("%s: %s", label, exc)
         metrics_subset = {
             "positives_in_predictions": 0,
             "total_predictions": int(len(preds_subset)),
@@ -281,7 +284,7 @@ def evaluate_grn(
         if candidate_genes:
             print(f"Loaded {len(candidate_genes)} candidate genes from {gene_path}")
         else:
-            print(f"[warn] Candidate gene list {gene_path} is empty.")
+            logger.warning("Candidate gene list %s is empty.", gene_path)
 
     global_baseline = None
     if candidate_genes:
@@ -298,8 +301,9 @@ def evaluate_grn(
         if not inferred:
             inferred = unique_preserving_order([tgt for _, tgt in gold_pairs])
         candidate_genes = inferred
-        print(
-            f"[warn] Falling back to {len(candidate_genes)} unique targets from predictions/gold as candidate genes."
+        logger.warning(
+            "Falling back to %d unique targets from predictions/gold as candidate genes.",
+            len(candidate_genes),
         )
 
     print("Computing metrics...")
@@ -517,6 +521,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = parse_args()
     predictions_path = Path(args.predictions)
     gold_path = Path(args.gold)

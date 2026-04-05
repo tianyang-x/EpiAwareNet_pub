@@ -134,6 +134,7 @@ class PositiveUnlabeledSampler:
         tf_list: Sequence[str],
         gene_names: Sequence[str],
         positive_links: Sequence[Tuple[str, str]],
+        seed: int = 42,
     ) -> None:
         self.tf_to_idx = {name: idx for idx, name in enumerate(tf_list)}
         self.gene_to_idx = {name: idx for idx, name in enumerate(gene_names)}
@@ -155,7 +156,7 @@ class PositiveUnlabeledSampler:
         self.positive_set = {
             (int(tf_idx), int(tgt_idx)) for tf_idx, tgt_idx in mapped_positive
         }
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng(seed)
 
     def sample_positive(self, batch_size: int) -> torch.LongTensor:
         choice = self.rng.choice(len(self.positive_pairs), size=batch_size, replace=True)
