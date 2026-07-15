@@ -1,0 +1,406 @@
+%==============================================================================
+% EpiAwareNet — KDD Research Poster
+% Epigenome-aware Transformer for Gene Regulatory Network Inference
+% Modern beamerposter layout (A0 landscape, 3 columns).
+%
+% Compile with:  pdflatex epiawarenet_poster.tex   (run twice)
+%           or:  tectonic epiawarenet_poster.tex
+%==============================================================================
+\documentclass[final,25pt]{beamer}
+
+\usepackage[size=a0,orientation=landscape,scale=1.35]{beamerposter}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,backgrounds,fit}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{fontawesome5}
+
+%------------------------------------------------------------------------------
+% Modern colour palette
+%------------------------------------------------------------------------------
+\definecolor{ink}{HTML}{16202B}        % near-black text
+\definecolor{slate}{HTML}{4A5A6A}      % muted body text
+\definecolor{primary}{HTML}{1F6FEB}    % electric blue (RNA / brand)
+\definecolor{accent}{HTML}{16A394}     % teal (ATAC / epigenome)
+\definecolor{amber}{HTML}{F0883E}      % warm accent (highlights)
+\definecolor{violet}{HTML}{8957E5}     % secondary accent
+\definecolor{paper}{HTML}{F7F9FC}      % page background
+\definecolor{card}{HTML}{FFFFFF}       % block background
+\definecolor{line}{HTML}{D8E0EA}       % hairline borders
+
+\setbeamercolor{background canvas}{bg=paper}
+\setbeamercolor{normal text}{fg=ink}
+\setbeamerfont{normal text}{family=\sffamily}
+
+%------------------------------------------------------------------------------
+% Custom "card" block theme (rounded corners, thin rule, coloured title bar)
+%------------------------------------------------------------------------------
+\setbeamertemplate{navigation symbols}{}
+
+% Rounded modern "card" blocks built on tcolorbox
+\usepackage[most]{tcolorbox}
+
+% A section card with a coloured header strip
+\newtcolorbox{card}[2][primary]{
+  enhanced, breakable, arc=12pt,
+  colback=card, colframe=line, boxrule=0.6pt,
+  left=20pt,right=20pt,top=52pt,bottom=18pt,
+  drop fuzzy shadow={black!13},
+  overlay={
+    \begin{tcbclipinterior}
+      \fill[#1] (interior.north west) rectangle ([yshift=-38pt]interior.north east);
+    \end{tcbclipinterior}
+    \node[anchor=west,text=white,font=\large\bfseries]
+      at ([xshift=18pt,yshift=-19pt]interior.north west) {#2};
+  }
+}
+
+\newcommand{\keyword}[1]{\textcolor{primary}{\bfseries #1}}
+\newcommand{\stat}[2]{{\color{primary}\fontsize{46}{50}\selectfont\bfseries #1}\\[2pt]{\small\color{slate}#2}}
+
+%==============================================================================
+\begin{document}
+\begin{frame}[t]
+
+%------------------------------------------------------------------------------
+% HEADER BANNER
+%------------------------------------------------------------------------------
+\begin{tcolorbox}[enhanced,sharp corners,boxrule=0pt,
+    left=30pt,right=30pt,top=24pt,bottom=24pt,
+    colback=ink,
+    interior style={left color=ink,right color=primary!85!ink},
+    overlay={
+      \fill[accent,opacity=0.18] ([xshift=-8cm]interior.north east) circle (7cm);
+      \fill[violet,opacity=0.14] ([xshift=-3cm,yshift=1cm]interior.north east) circle (4cm);
+    }]
+  \begin{minipage}[c]{0.14\textwidth}
+    \centering
+    \begin{tikzpicture}[scale=1]
+      \node[circle,draw=white,line width=3pt,minimum size=3.6cm,inner sep=0]
+            (dna) {\fontsize{50}{50}\selectfont\color{white}\faDna};
+      \node[below=6pt of dna,text=white!85,font=\small] {};
+    \end{tikzpicture}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[c]{0.68\textwidth}
+    \centering
+    {\color{white}\fontsize{72}{78}\selectfont\bfseries EpiAwareNet}\\[10pt]
+    {\color{white!92}\fontsize{34}{40}\selectfont
+      Epigenome-aware Transformer for Gene Regulatory Network Inference}\\[6pt]
+    {\color{white!80}\fontsize{28}{34}\selectfont
+      from Single-Cell Multi-Omics Data}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[c]{0.14\textwidth}
+    \raggedleft
+    {\color{white!90}\large Tianyang Xu}\\[8pt]
+    {\color{white!70}\normalsize \faGithub~\texttt{tianyang-x/}}\\
+    {\color{white!70}\normalsize \texttt{EpiAwareNet\_pub}}\\[10pt]
+    {\color{amber}\bfseries\large KDD}
+  \end{minipage}
+\end{tcolorbox}
+
+\vspace{0.8cm}
+
+%------------------------------------------------------------------------------
+% THREE-COLUMN BODY
+%------------------------------------------------------------------------------
+\begin{columns}[t]
+
+%================= COLUMN 1 ====================================================
+\begin{column}{0.315\textwidth}
+
+%---- Motivation --------------------------------------------------------------
+\begin{card}[primary]{Motivation}
+  Gene regulatory networks (GRNs) explain how transcription factors (TFs)
+  control the genes that define a cell's identity. Single-cell data now
+  profile both \keyword{gene expression} (scRNA-seq) and
+  \keyword{chromatin accessibility} (scATAC-seq) in the same cells,
+  yet most GRN methods use expression alone and ignore the
+  \keyword{epigenomic context} that determines whether a TF can act.
+
+  \vspace{10pt}
+  \textbf{Challenges we address:}
+  \begin{itemize}\setlength\itemsep{6pt}
+    \item Regulatory logic is \keyword{cell-context specific} — one static
+          network cannot fit all cell states.
+    \item Ground-truth edges are scarce and one-sided: we observe
+          \keyword{positives only}, never confirmed negatives.
+    \item Coupling expression with distal accessible peaks requires
+          \keyword{scalable} attention over thousands of genes and peaks.
+  \end{itemize}
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Contributions -----------------------------------------------------------
+\begin{card}[accent]{Key Contributions}
+  \begin{itemize}\setlength\itemsep{9pt}
+    \item A \keyword{dual-path Transformer backbone} that fuses RNA and ATAC
+          through gene--gene sparse self-attention and candidate-aware
+          gene--peak cross-attention.
+    \item A self-supervised \keyword{masked negative-binomial} objective that
+          respects the count nature of single-cell expression.
+    \item A \keyword{non-negative PU} (nnPU) fine-tuning head that learns
+          TF$\rightarrow$gene edges from positive priors \emph{without}
+          fabricated negatives.
+    \item \keyword{Context-specific GRNs}: per-cell scoring aggregated over any
+          cell subset yields a network for that state.
+  \end{itemize}
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Inputs / at a glance ----------------------------------------------------
+\begin{card}[violet]{At a Glance}
+  \centering
+  \begin{minipage}{0.30\textwidth}\centering\stat{2}{omics layers\\fused}\end{minipage}\hfill
+  \begin{minipage}{0.32\textwidth}\centering\stat{2}{training\\stages}\end{minipage}\hfill
+  \begin{minipage}{0.30\textwidth}\centering\stat{$O(nk)$}{sparse\\attention}\end{minipage}
+  \vspace{16pt}
+  \raggedright\small
+  \textbf{Inputs:} scRNA \& scATAC matrices, gene$\to$candidate-peak map,
+  known TF list, bulk positive TF--target links.
+\end{card}
+
+\end{column}
+
+%================= COLUMN 2 ====================================================
+\begin{column}{0.355\textwidth}
+
+%---- Architecture ------------------------------------------------------------
+\begin{card}[primary]{Model Architecture}
+\centering
+\begin{tikzpicture}[
+    node distance=0pt,
+    box/.style={rounded corners=6pt,draw=line,line width=1pt,minimum height=1.5cm,
+                align=center,font=\small,inner sep=6pt},
+    rna/.style={box,fill=primary!12,draw=primary!55},
+    atac/.style={box,fill=accent!12,draw=accent!55},
+    core/.style={box,fill=violet!10,draw=violet!55},
+    head/.style={box,fill=amber!16,draw=amber!70},
+    lbl/.style={font=\scriptsize\bfseries,text=slate},
+    arr/.style={-{Stealth[length=5mm]},line width=1.3pt,slate}
+  ]
+
+  % ---- inputs
+  \node[rna,minimum width=6cm]  (rna)  at (0,0)   {\textbf{scRNA-seq}\\\scriptsize genes $\times$ cells};
+  \node[atac,minimum width=6cm] (atac) at (8.5,0) {\textbf{scATAC-seq}\\\scriptsize peaks $\times$ cells};
+
+  % ---- token embedding
+  \node[core,minimum width=14.5cm,below=1.1cm of rna.south west,anchor=north west,xshift=0cm]
+        (emb) {Value $+$ token $+$ type embeddings};
+
+  % ---- backbone block
+  \node[core,minimum width=14.5cm,below=1.0cm of emb,fill=violet!8]
+        (block) {\textbf{$\times\,6$ Dual-Path Blocks}\\[4pt]
+        \scriptsize\begin{tabular}{@{}c@{\;\;}c@{}}
+          \textcolor{primary}{\faProjectDiagram}\ Gene--Gene &
+          \textcolor{accent}{\faLink}\ Gene--Peak\\
+          sparse kNN self-attn & masked cross-attn\\
+        \end{tabular}};
+
+  % ---- two heads
+  \node[head,minimum width=6.8cm,below=1.1cm of block.south west,anchor=north west]
+        (recon) {\textbf{Stage 1 head}\\\scriptsize Masked NB reconstruction};
+  \node[head,minimum width=6.8cm,below=1.1cm of block.south east,anchor=north east,fill=amber!22]
+        (grn)   {\textbf{Stage 2 head}\\\scriptsize nnPU TF$\rightarrow$gene edge};
+
+  % ---- arrows
+  \draw[arr] (rna.south)  -- ([xshift=-3.5cm]emb.north);
+  \draw[arr] (atac.south) -- ([xshift=3.5cm]emb.north);
+  \draw[arr] (emb) -- (block);
+  \draw[arr] (block.south) ++(-3.4cm,0) -- (recon.north);
+  \draw[arr] (block.south) ++(3.4cm,0)  -- (grn.north);
+
+  % annotation of frozen backbone
+  \node[lbl,right=4pt of block.east,rotate=90,anchor=south,xshift=-0.2cm,yshift=0.1cm]
+       {};
+\end{tikzpicture}
+
+\vspace{10pt}
+\small
+The backbone alternates \keyword{gene--gene sparse self-attention}
+(each gene attends only to its $k$ nearest neighbours in embedding space,
+cost $O(nk)$ not $O(n^2)$) and \keyword{gene--peak cross-attention}
+restricted to each gene's candidate peaks with optional Top-$K$ routing.
+Stage 1 pre-trains the shared backbone; Stage 2 freezes it and trains only
+a light edge head.
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Two-stage training ------------------------------------------------------
+\begin{card}[accent]{Two-Stage Learning}
+\textbf{\textcolor{primary}{Stage 1 — Self-supervised representation.}}
+Randomly mask a fraction of gene counts and reconstruct them with a
+\keyword{negative-binomial} likelihood, capturing the over-dispersed,
+integer nature of scRNA-seq:
+\vspace{-4pt}
+\[
+\mathcal{L}_{\text{NB}}=-\!\!\sum_{i\in\mathcal{M}}\!
+\log \mathrm{NB}\!\left(x_i \mid \mu_i,\theta_i\right),
+\]
+with per-gene mean $\mu_i$ and dispersion $\theta_i$ predicted from the
+fused embedding (masked positions only).
+
+\vspace{12pt}
+\textbf{\textcolor{accent}{Stage 2 — nnPU edge learning.}}
+The backbone is frozen; a head scores a $[\,\text{TF}\,\|\,\text{gene}\,]$
+pair. With positive prior $\pi_p$ and hinge loss $\ell$, the
+\keyword{non-negative PU risk} is
+\vspace{-4pt}
+\[
+\widehat{R}=\pi_p\widehat{R}^{+}_{p}
++\max\!\Big(0,\;\widehat{R}^{-}_{u}-\pi_p\widehat{R}^{-}_{p}\Big),
+\]
+so unlabeled pairs act as noisy negatives without ever asserting a false
+negative — well suited to the incomplete gold standard.
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Design notes / scalability ---------------------------------------------
+\begin{card}[amber]{Design Notes \& Scalability}
+  \small
+  \begin{itemize}\setlength\itemsep{8pt}
+    \item \keyword{Sparse over dense.} Gene self-attention is restricted to
+          $k$ nearest neighbours (cosine kNN, FAISS-optional), turning the
+          quadratic $O(n^2)$ cost into $O(nk)$ over thousands of genes.
+    \item \keyword{Biology-guided sparsity.} Cross-attention only sees a
+          gene's candidate peaks, injecting the prior that regulation acts
+          through nearby accessible DNA.
+    \item \keyword{Chunked attention} over genes/peaks keeps memory flat, so
+          the same model scales across cell, gene, and peak counts.
+    \item \keyword{Frozen backbone reuse.} One pre-trained encoder serves the
+          reconstruction and edge tasks — Stage 2 adds only a light head.
+  \end{itemize}
+\end{card}
+
+\end{column}
+
+%================= COLUMN 3 ====================================================
+\begin{column}{0.315\textwidth}
+
+%---- Context-specific inference ---------------------------------------------
+\begin{card}[violet]{Context-Specific GRNs}
+  After fine-tuning, EpiAwareNet scores every TF--gene pair
+  \keyword{per cell}. Averaging edge probabilities across any chosen
+  cell subset $\mathcal{C}$ yields a context adjacency
+  \[
+  A^{\mathcal{C}}_{t\to g}=\frac{1}{|\mathcal{C}|}\sum_{c\in\mathcal{C}}
+      \sigma\!\big(f(z^{c}_{t},z^{c}_{g})\big),
+  \]
+  so a single trained model produces different networks for different cell
+  types, states, or conditions.
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Evaluation --------------------------------------------------------------
+\begin{card}[primary]{Evaluation Protocol}
+  \small
+  Held-out bulk TF--target links serve as the gold standard. We report
+  \keyword{AUPRC} and \keyword{AUROC} with PR/ROC curves, plus a
+  \keyword{degree-matched random-network} permutation test that yields
+  per-TF precision/recall and \keyword{empirical $p$-values} — controlling
+  for hub genes that inflate naïve overlap.
+
+  \vspace{10pt}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Datasets} & pN, mN, PBMC, mouse brain \\
+    \textbf{Metrics}  & AUPRC, AUROC, per-TF $p$-value \\
+    \textbf{Gold}     & bulk TF--target priors \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Ablations ---------------------------------------------------------------
+\begin{card}[accent]{Ablation Studies}
+  \small The released suite isolates each design choice:
+  \vspace{6pt}
+  \begin{itemize}\setlength\itemsep{6pt}
+    \item \keyword{Multi-omic vs.\ RNA-only} backbone — quantifies the value
+          of chromatin accessibility.
+    \item \keyword{nnPU vs.\ BCE} — PU learning vs.\ treating unlabeled pairs
+          as hard negatives.
+    \item \keyword{Cross-attention Top-$K$} $\in\{0,2,4,8,16\}$ — how much
+          peak routing to allow.
+    \item \keyword{Prior-noise \& weak-prior} robustness — random candidate
+          peaks and corrupted positive links.
+  \end{itemize}
+\end{card}
+
+\vspace{1.15cm}
+
+%---- Takeaways / footer ------------------------------------------------------
+\begin{tcolorbox}[enhanced,arc=12pt,boxrule=0pt,
+    colback=ink,coltext=white,
+    interior style={left color=ink,right color=accent!80!ink},
+    left=22pt,right=22pt,top=18pt,bottom=18pt,
+    drop fuzzy shadow={black!20}]
+  {\large\bfseries\color{amber} Takeaways}\\[8pt]
+  \small
+  \faCheckCircle~~Epigenome-aware attention couples expression with
+  accessible regulatory DNA.\\[6pt]
+  \faCheckCircle~~PU learning matches the positive-only reality of GRN
+  supervision.\\[6pt]
+  \faCheckCircle~~One model, many \keyword{\color{white}context-specific}
+  networks.\\[12pt]
+  {\footnotesize\color{white!80}
+  Code, pipelines \& ablations: \faGithub~\texttt{github.com/tianyang-x/EpiAwareNet\_pub} \; | \; MIT License}
+\end{tcolorbox}
+
+\end{column}
+\end{columns}
+
+\vspace{0.55cm}
+
+%------------------------------------------------------------------------------
+% FULL-WIDTH END-TO-END PIPELINE BAND
+%------------------------------------------------------------------------------
+\begin{card}[primary]{End-to-End Pipeline}
+\centering
+\begin{tikzpicture}[
+    node distance=6.2cm,
+    stage/.style={rounded corners=8pt,draw=line,line width=1pt,align=center,
+                  minimum height=1.9cm,text width=5.7cm,inner sep=6pt,font=\small},
+    s1/.style={stage,fill=primary!10,draw=primary!55},
+    s2/.style={stage,fill=accent!10,draw=accent!55},
+    s3/.style={stage,fill=violet!10,draw=violet!55},
+    s4/.style={stage,fill=amber!14,draw=amber!70},
+    flow/.style={-{Stealth[length=7mm,width=6mm]},line width=2pt,slate}
+  ]
+  \node[s1] (d1) {\textbf{\textcolor{primary}{Multi-omic input}}\\[2pt]
+        \scriptsize scRNA $+$ scATAC per cell};
+  \node[s1,right=of d1] (d2) {\textbf{\textcolor{primary}{Stage 1: Pre-train}}\\[2pt]
+        \scriptsize masked-NB backbone};
+  \node[s2,right=of d2] (d3) {\textbf{\textcolor{accent}{Freeze backbone}}\\[2pt]
+        \scriptsize reuse fused embeddings};
+  \node[s2,right=of d3] (d4) {\textbf{\textcolor{accent}{Stage 2: Fine-tune}}\\[2pt]
+        \scriptsize nnPU edge head};
+  \node[s3,right=of d4] (d5) {\textbf{\textcolor{violet}{Per-cell scoring}}\\[2pt]
+        \scriptsize $\sigma(f(z_t,z_g))$ per TF--gene};
+  \node[s4,right=of d5] (d6) {\textbf{Context GRN + eval}\\[2pt]
+        \scriptsize aggregate; AUPRC/AUROC/$p$};
+
+  \draw[flow] (d1) -- (d2);
+  \draw[flow] (d2) -- (d3);
+  \draw[flow] (d3) -- (d4);
+  \draw[flow] (d4) -- (d5);
+  \draw[flow] (d5) -- (d6);
+\end{tikzpicture}
+\end{card}
+
+\end{frame}
+\end{document}
